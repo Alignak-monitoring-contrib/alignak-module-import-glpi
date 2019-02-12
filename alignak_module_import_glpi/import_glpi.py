@@ -34,7 +34,10 @@ with the Web services plugin installed to get all hosts and configuration.
 """
 
 import logging
-import xmlrpclib
+try:
+    import xmlrpclib as xc
+except ImportError:
+    import xmlrpc.client as xc
 
 from alignak.basemodule import BaseModule
 
@@ -122,7 +125,7 @@ class Glpi_arbiter(BaseModule):
 
         try:
             logger.info("Connecting to %s", self.uri)
-            self.con = xmlrpclib.ServerProxy(self.uri, encoding='utf-8', verbose=self.verbose)
+            self.con = xc.ServerProxy(self.uri, encoding='utf-8', verbose=self.verbose)
             logger.info("Connection opened")
             logger.info("Authentication in progress...")
             arg = {'login_name': self.login_name, 'login_password': self.login_password}
