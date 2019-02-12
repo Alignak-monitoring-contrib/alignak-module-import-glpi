@@ -92,6 +92,7 @@ class Glpi_arbiter(BaseModule):
         self.verbose = (getattr(mod_conf, 'verbose', '') != '')
         self.login_name = getattr(mod_conf, 'login_name', 'alignak')
         self.login_password = getattr(mod_conf, 'login_password', 'alignak')
+        logger.info("configured GLPI uri: %s", self.uri)
 
         # tag is still managed for compatibility purposes, better use tags!
         self.tag = getattr(mod_conf, 'tag', '')
@@ -116,7 +117,8 @@ class Glpi_arbiter(BaseModule):
         self.con = None
         if not self.uri:
             logger.info("No Glpi WS uri configured, the module is disabled")
-            return False
+            # True because False will make the module get reloaded endlessly!
+            return True
 
         try:
             logger.info("Connecting to %s", self.uri)
