@@ -1,0 +1,5 @@
+# Needing six for python 2.7/3 compatibility
+six
+
+# Nothing special, except Alignak
+alignak
