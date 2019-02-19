@@ -131,7 +131,7 @@ class TestModules(AlignakTest):
         ), i)
         i += 1
         self.assert_log_match(re.escape(
-            "configured entities tags: ['']"
+            "configured entities tags: []"
         ), i)
 
         time.sleep(1)
