@@ -56,7 +56,7 @@ class TestModules(AlignakTest):
         self.assertTrue(self.conf_is_correct)
         self.show_configuration_logs()
 
-        # No arbiter modules created
+        # An arbiter module created
         modules = [m.module_alias for m in self._arbiter.link_to_myself.modules]
         self.assertListEqual(modules, ['import-glpi'])
 
@@ -68,7 +68,7 @@ class TestModules(AlignakTest):
         modules = [m.module_alias for m in self._scheduler_daemon.modules]
         self.assertListEqual(modules, ['inner-retention'])
 
-        # A receiver module
+        # No receiver modules
         modules = [m.module_alias for m in self._receiver.modules]
         self.assertListEqual(modules, [])
 

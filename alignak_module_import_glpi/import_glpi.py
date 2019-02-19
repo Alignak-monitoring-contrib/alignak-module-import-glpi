@@ -32,8 +32,11 @@
 This Class is a plugin for the Shinken/Alignak Arbiter. It connects to a Glpi instance
 with the Web services plugin installed to get all hosts and configuration.
 """
-
+import sys
+import time
 import logging
+import traceback
+
 try:
     import xmlrpclib as xc
 except ImportError:
@@ -64,14 +67,14 @@ def get_instance(mod_conf):
     :return:
     """
     logger.info("Give an instance of %s for alias: %s", mod_conf.python_name, mod_conf.module_alias)
-    return Glpi_arbiter(mod_conf)
+    return GlpiConfiguration(mod_conf)
 
 
-# Just get hostname from a GLPI webservices
-class Glpi_arbiter(BaseModule):
+class GlpiConfiguration(BaseModule):
     """
-    NSCA collector module main class
+    Get Alignak objects configuration from a GLPI instance
     """
+
     def __init__(self, mod_conf):
         """
         Module initialization
@@ -91,28 +94,77 @@ class Glpi_arbiter(BaseModule):
         logger.debug("inner properties: %s", self.__dict__)
         logger.debug("received configuration: %s", mod_conf.__dict__)
 
+        self.alignak_name = getattr(mod_conf, 'alignak_name', '')
         self.uri = getattr(mod_conf, 'uri', '')
-        self.verbose = (getattr(mod_conf, 'verbose', '') != '')
-        self.login_name = getattr(mod_conf, 'login_name', 'alignak')
-        self.login_password = getattr(mod_conf, 'login_password', 'alignak')
         logger.info("configured GLPI uri: %s", self.uri)
 
-        # tag is still managed for compatibility purposes, better use tags!
-        self.tag = getattr(mod_conf, 'tag', '')
-        self.tags = getattr(mod_conf, 'tags', '')
+        self.encoding = getattr(mod_conf, 'encoding', 'utf-8')
+        self.verbose = (getattr(mod_conf, 'verbose', '') != '')
+        logger.info("Dialog parameters, encoding: %s, verbose: %s", self.encoding, self.verbose)
 
-        if not self.tags:
-            self.tags = self.tag
-        self.tags = self.tags.split(',')
-        if self.tag:
-            self.tags += self.tag
-        logger.info("configured entities tags: %s", self.tags)
+        self.login_name = getattr(mod_conf, 'login_name', 'alignak')
+        self.login_password = getattr(mod_conf, 'login_password', 'alignak')
+
+        # Note that order matters! Get time periods and contacts after all other objects
+        self.ws = [
+            {
+                'type': 'command',
+                'method': getattr(mod_conf, 'ws_command',
+                                  'monitoring.getConfigCommands')
+            },
+            {
+                'type': 'host',
+                'method': getattr(mod_conf, 'ws_host',
+                                  'monitoring.getConfigHosts')
+            },
+            {
+                'type': 'hostgroup',
+                'method': getattr(mod_conf, 'ws_hostgroup',
+                                  'monitoring.getConfigHostgroups')
+            },
+            {
+                'type': 'servicestemplate',
+                'method': getattr(mod_conf, 'ws_servicestemplate',
+                                  'monitoring.getConfigServicesTemplates')
+            },
+            {
+                'type': 'service',
+                'type_name': 'service_description',
+                'method': getattr(mod_conf, 'ws_service',
+                                  'monitoring.getConfigServices')
+            },
+            {
+                'type': 'realm',
+                'method': getattr(mod_conf, 'ws_realm',
+                                  'monitoring.getConfigRealms')
+            },
+            {
+                'type': 'timeperiod',
+                'method': getattr(mod_conf, 'ws_timeperiod',
+                                  'monitoring.getConfigTimeperiods')
+            },
+            {
+                'type': 'contact',
+                'method': getattr(mod_conf, 'ws_contact',
+                                  'monitoring.getConfigContacts')
+            }
+        ]
+
+        # tag is the monitoring framework identifier
+        self.tag = getattr(mod_conf, 'tag', '')
+        if not self.tag:
+            self.tag = self.alignak_name
+
+        self.entities = getattr(mod_conf, 'entities', '')
+        self.entities = self.entities.split(',')
+        if self.entities and not self.entities[0]:
+            self.entities = []
+        logger.info("configured entities tags: %s", self.entities)
 
         # Server connection
         self.con = None
         self.session = None
 
-    # Called by Arbiter to say 'let's prepare yourself guy'
     def init(self):
         """
         Connect to the Glpi Web Service.
@@ -128,8 +180,9 @@ class Glpi_arbiter(BaseModule):
             self.con = xc.ServerProxy(self.uri, encoding='utf-8', verbose=self.verbose)
             logger.info("Connection opened")
             logger.info("Authentication in progress...")
-            arg = {'login_name': self.login_name, 'login_password': self.login_password}
-            res = self.con.glpi.doLogin(arg)
+            res = self.con.glpi.doLogin({
+                'login_name': self.login_name,
+                'login_password': self.login_password})
             self.session = res['session']
             logger.info("Authenticated, session : %s", self.session)
         except Exception as e:
@@ -137,113 +190,140 @@ class Glpi_arbiter(BaseModule):
 
         return self.con is not None
 
-    # Ok, main function that will load config from GLPI
+    def do_loop_turn(self):
+        """This function is called/used when you need a module with
+        a loop function (and use the parameter 'external': True)
+        """
+        logger.info("In loop")
+        time.sleep(1)
+
     def get_objects(self):
-        r = {'commands': [],
-             'timeperiods': [],
-             'hosts': [],
-             'hostgroups': [],
-             'servicestemplates': [],
-             'services': [],
-             'contacts': []}
+        """
+        Get configuration objects from GLPI assuming the session was opened
+        on module initialization.
+
+        :return:
+        """
+        result = {
+            'commands': [],
+            'realms': [],
+            'hosts': [],
+            'hostgroups': [],
+            'servicestemplates': [],
+            'services': [],
+            'contacts': [],
+            'timeperiods': []
+        }
 
         if not self.session:
             logger.error("No opened session, I cannot provide any objects to the arbiter.")
-            return r
+            return result
 
-        for tag in self.tags:
-            tag = tag.strip()
-            if tag:
-                logger.info(" Getting configuration for entity tagged with '%s'", tag)
+        # Set entity as empty to get all possible entities from Glpi
+        parameters = {
+            'session': self.session,
+            # 'file_output': '1',
+            'entity': ''
+        }
+        if self.tag:
+            parameters['tag'] = self.tag
+        if self.alignak_name:
+            parameters['name'] = self.alignak_name
+        if self.encoding:
+            parameters['encoding'] = self.encoding
+
+        if not self.entities:
+            try:
+                # Get items, request the configured WS
+                items = self.con.monitoring.getMonitoredEntities(parameters)
+                logger.info("Got %s entities", len(items) if items else 'no')
+                for item in items:
+                    logger.debug("-: %s", item)
+
+                    if item not in self.entities:
+                        logger.info("- entity: %s", item)
+                        self.entities.append(item)
+            except xc.Fault as exp:
+                logger.error("XML RPC fault: %s / %s",
+                             exp.faultCode, exp.faultString)
+            except xc.ProtocolError as exp:
+                logger.error("XML RPC protocol error: %s / %s, url: %s",
+                             exp.errcode, exp.errmsg, exp.url)
+            except Exception as exp:
+                logger.error("Exception when getting entities list: %s / %s", type(exp), str(exp))
+
+        if not self.entities:
+            logger.warning("No entities are available to get monitoring configuration.")
+            return result
+
+        for entity in self.entities:
+            entity = entity.strip()
+            if entity:
+                logger.info(" Getting configuration for entity tagged with '%s'", entity)
             else:
                 logger.info(" Getting configuration for all entities")
 
-            # iso8859 is necessary because Arbiter does not deal with UTF8 objects !
-            arg = {'session': self.session, 'iso8859': '1', 'tag': tag}
+            parameters['entity'] = entity
 
-            try:
-                # Get commands
-                commands = self.con.monitoring.shinkenCommands(arg)
-                logger.info("Got %s commands", len(commands) if commands else 'no')
-                for item in commands:
-                    logger.debug("-: %s", item)
+            for ws in self.ws:
+                if not ws['method']:
+                    continue
 
-                    if item not in r['commands']:
-                        logger.info("- command: %s", item['command_name'])
-                        r['commands'].append(item)
+                try:
+                    if sys.version_info[0] < 3:
+                        if ws['type'] == 'command':
+                            items = self.con.monitoring.getConfigCommands(parameters)
+                        if ws['type'] == 'host':
+                            items = self.con.monitoring.getConfigHosts(parameters)
+                        if ws['type'] == 'hostgroup':
+                            items = self.con.monitoring.getConfigHostgroups(parameters)
+                        if ws['type'] == 'servicestemplate':
+                            items = self.con.monitoring.getConfigServicesTemplates(parameters)
+                        if ws['type'] == 'service':
+                            items = self.con.monitoring.getConfigServices(parameters)
+                        if ws['type'] == 'contact':
+                            items = self.con.monitoring.getConfigContacts(parameters)
+                        if ws['type'] == 'realm':
+                            items = self.con.monitoring.getConfigRealms(parameters)
+                        if ws['type'] == 'timeperiod':
+                            items = self.con.monitoring.getConfigTimeperiods(parameters)
+                    else:
+                        # Get items, request the configured WS
+                        fct = getattr(self.con, ws['method'], None)
+                        if fct:
+                            items = fct(parameters)
 
-                # Get contacts
-                contacts = self.con.monitoring.shinkenContacts(arg)
-                logger.info("Got %s contacts", len(contacts) if contacts else 'no')
-                for item in contacts:
-                    logger.debug("-: %s", item)
+                    logger.info("Got %s %ss", len(items) if items else 'no', ws['type'])
+                    for item in items:
+                        logger.debug("-: %s", item)
 
-                    if item not in r['contacts']:
-                        logger.info("- contact: %s", item['contact_name'])
-                        r['contacts'].append(item)
+                        if item not in result['%ss' % ws['type']]:
+                            logger.info("- %s: %s", ws['type'], item)
+                            if 'register' in item:
+                                # Item is a template
+                                logger.info("- %s template: %s", ws['type'], item['name'])
+                            else:
+                                type_name = ws.get('type_name', '%s_name' % ws['type'])
+                                logger.info("- %s: %s", ws['type'], item[type_name])
+                            type_list = ws.get('type_list', '%ss' % ws['type'])
+                            result[type_list].append(item)
+                except xc.Fault as exp:
+                    logger.error("XML RPC fault: %s / %s",
+                                 exp.faultCode, exp.faultString)
+                except xc.ProtocolError as exp:
+                    logger.error("XML RPC protocol error: %s / %s, url: %s",
+                                 exp.errcode, exp.errmsg, exp.url)
+                except Exception as exp:
+                    logger.error("Exception when getting tag '%s': %s / %s", entity, type(exp),
+                                 str(exp))
+                    logger.error(traceback.print_exc())
 
-                # Get timeperiods
-                timeperiods = self.con.monitoring.shinkenTimeperiods(arg)
-                logger.info("Got %s timeperiods", len(timeperiods) if timeperiods else 'no')
-                for item in timeperiods:
-                    logger.debug("-: %s", item)
+        # Group services and services templates
+        result['services'] = result['servicestemplates'] + result['services']
+        del result['servicestemplates']
 
-                    if item not in r['timeperiods']:
-                        logger.info("- timeperiod: %s", item['timeperiod_name'])
-                        r['timeperiods'].append(item)
+        logger.info("Returned data:")
+        for ws in result:
+            logger.info("- %d %s", len(result[ws]), ws)
 
-                # Get hosts
-                hosts = self.con.monitoring.shinkenHosts(arg)
-                logger.info("Got %s hosts", len(hosts) if hosts else 'no')
-                for item in hosts:
-                    logger.debug("-: %s ", item)
-
-                    if item not in r['hosts']:
-                        logger.info("- host: %s", item['host_name'])
-                        r['hosts'].append(item)
-
-                # Get hostgroups
-                hostgroups = self.con.monitoring.shinkenHostgroups(arg)
-                logger.info("Got %s hostgroups", len(hostgroups) if hostgroups else 'no')
-                for item in hostgroups:
-                    logger.debug("-: %s ", item)
-
-                    if item not in r['hostgroups']:
-                        logger.info("- hostgroup: %s", item['hostgroup_name'])
-                        r['hostgroups'].append(item)
-
-                # Get templates
-                templates = self.con.monitoring.shinkenTemplates(arg)
-                logger.info("Got %s services templates", len(templates) if templates else 'no')
-                for item in templates:
-                    logger.debug("-: %s", item)
-
-                    if item not in r['servicestemplates']:
-                        logger.info("- service template: %s", item['name'])
-                        r['servicestemplates'].append(item)
-
-                # Get services
-                services = self.con.monitoring.shinkenServices(arg)
-                logger.info("Got %s services", len(services) if services else 'no')
-                for item in services:
-                    logger.debug("-: %s", item)
-
-                    if item not in r['services']:
-                        logger.info("- service: %s/%s", item['host_name'], item['service_description'])
-                        r['services'].append(item)
-            except Exception as exp:
-                logger.error("Exception when getting tag '%s': %s / %s", tag, type(exp), str(exp))
-
-        logger.info("Sending all data to the Arbiter:")
-        logger.info("- %d commands to Arbiter", len(r['commands']))
-        logger.info("- %d timeperiods to Arbiter", len(r['timeperiods']))
-        logger.info("- %d contacts to Arbiter", len(r['contacts']))
-        logger.info("- %d hosts to Arbiter", len(r['hosts']))
-        logger.info("- %d hosts groups to Arbiter", len(r['hostgroups']))
-        logger.info("- %d services templates to Arbiter", len(r['servicestemplates']))
-        logger.info("- %d services to Arbiter", len(r['services']))
-
-        r['services'] = r['servicestemplates'] + r['services']
-        del r['servicestemplates']
-
-        return r
+        return result
