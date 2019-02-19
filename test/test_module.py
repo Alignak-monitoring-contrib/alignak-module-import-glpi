@@ -174,7 +174,7 @@ class TestModules(AlignakTest):
         ), i)
         i += 1
         self.assert_log_match(re.escape(
-            "configured entities tags: ['']"
+            "configured entities tags: []"
         ), i)
         i += 1
         self.assert_log_match(re.escape(
@@ -227,7 +227,7 @@ class TestModules(AlignakTest):
         # ), i)
         # i += 1
         # self.assert_log_match(re.escape(
-        #     "configured entities tags: ['']"
+        #     "configured entities tags: []"
         # ), i)
 
         my_module = self.modulemanager.instances[0]
@@ -285,5 +285,5 @@ class TestModules(AlignakTest):
             "configured GLPI uri:"
         ), 1)
         self.assert_log_match(re.escape(
-            "configured entities tags: ['']"
+            "configured entities tags: []"
         ), 2)
