@@ -139,14 +139,14 @@ class GlpiConfiguration(BaseModule):
                                   'monitoring.getConfigRealms')
             },
             {
-                'type': 'timeperiod',
-                'method': getattr(mod_conf, 'ws_timeperiod',
-                                  'monitoring.getConfigTimeperiods')
-            },
-            {
                 'type': 'contact',
                 'method': getattr(mod_conf, 'ws_contact',
                                   'monitoring.getConfigContacts')
+            },
+            {
+                'type': 'timeperiod',
+                'method': getattr(mod_conf, 'ws_timeperiod',
+                                  'monitoring.getConfigTimeperiods')
             }
         ]
 
@@ -298,15 +298,20 @@ class GlpiConfiguration(BaseModule):
                         logger.debug("-: %s", item)
 
                         if item not in result['%ss' % ws['type']]:
-                            logger.info("- %s: %s", ws['type'], item)
                             if 'register' in item:
                                 # Item is a template
                                 logger.info("- %s template: %s", ws['type'], item['name'])
                             else:
                                 type_name = ws.get('type_name', '%s_name' % ws['type'])
-                                logger.info("- %s: %s", ws['type'], item[type_name])
+                                if type_name == 'service_description':
+                                    logger.info("- %s: %s/%s",
+                                                ws['type'], item['host_name'], item[type_name])
+                                else:
+                                    logger.info("- %s: %s",
+                                                ws['type'], item[type_name])
                             type_list = ws.get('type_list', '%ss' % ws['type'])
                             result[type_list].append(item)
+                            logger.info("- %s: %s", ws['type'], item)
                 except xc.Fault as exp:
                     logger.error("XML RPC fault: %s / %s",
                                  exp.faultCode, exp.faultString)
