@@ -131,6 +131,10 @@ class TestModules(AlignakTest):
         ), i)
         i += 1
         self.assert_log_match(re.escape(
+            "Dialog parameters, encoding: utf-8, verbose: False"
+        ), i)
+        i += 1
+        self.assert_log_match(re.escape(
             "configured entities tags: []"
         ), i)
 
@@ -171,6 +175,10 @@ class TestModules(AlignakTest):
         i += 1
         self.assert_log_match(re.escape(
             "configured GLPI uri:"
+        ), i)
+        i += 1
+        self.assert_log_match(re.escape(
+            "Dialog parameters, encoding: utf-8, verbose: False"
         ), i)
         i += 1
         self.assert_log_match(re.escape(
@@ -278,12 +286,19 @@ class TestModules(AlignakTest):
 
         # self.assert_log_match(
         #     re.escape("Give an instance of alignak_module_import_glpi for alias: import-glpi"), 0)
+        i = 0
         self.assert_log_match(re.escape(
             "Give an instance of alignak_module_import_glpi for alias: import-glpi"
-        ), 0)
+        ), i)
+        i += 1
         self.assert_log_match(re.escape(
             "configured GLPI uri:"
-        ), 1)
+        ), i)
+        i += 1
+        self.assert_log_match(re.escape(
+            "Dialog parameters, encoding: utf-8, verbose: False"
+        ), i)
+        i += 1
         self.assert_log_match(re.escape(
             "configured entities tags: []"
-        ), 2)
+        ), i)

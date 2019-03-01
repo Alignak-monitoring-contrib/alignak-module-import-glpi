@@ -236,7 +236,7 @@ class GlpiConfiguration(BaseModule):
             try:
                 # Get items, request the configured WS
                 items = self.con.monitoring.getMonitoredEntities(parameters)
-                logger.info("Got %s entities", len(items) if items else 'no')
+                logger.info("Got %d entities", len(items) if items else 'no')
                 for item in items:
                     logger.debug("-: %s", item)
 
@@ -256,6 +256,7 @@ class GlpiConfiguration(BaseModule):
             logger.warning("No entities are available to get monitoring configuration.")
             return result
 
+        # pylint: disable=too-many-nested-blocks
         for entity in self.entities:
             entity = entity.strip()
             if entity:
