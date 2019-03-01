@@ -45,7 +45,7 @@ jobs:
           tags: true
         user: alignak
         password:
-          secure: "Olz+eZ2ZRl7fnE1RjT6MwDa8pK1dfWfgaN1ntl4mDDzi/Ex1HDlV+8jfzDXVG0vsaGimkDxTQ7HBlJPyPVcK3+owSk6LjgYCfycUQkg0wnF8PUZHKiAWgC9MO6/9hILxF/ROh4IWtEyjPPgv0o4LXgF6HbFdoSyUakgG5wb+VsXD/NCuC+IXFDFnJ1k1f+1uOc4tsxq8BvU9hRUMt/En+KW1oI6YdlwuzliiJav/5QFgWMdQlKre5v4KZzIJCUh3fMhvYifI6nOmQeRR/2NIvIJv+esOQxj3TBxxhqhidsdC96lzTIi+85TVx6giNLfB68tESsGfwvYwBpsDstbtELL49yyxLYu7ZQaaCBNdHlsiRjIX3mnsOsml45tL4eldqRk0NvVKD72SxGrOqphpBndTHxZOD+vt3a+ymkMRb0IWV/o2SKxjPxVS60Iwf9ZZHx5gujWisw2MDZOJ87Dayp8BrTfysQx+NnuyKvIrmfBeziZHNQmDoxdTMwffDgOevoGzZCMbfe04VcEL/Cpuke24NrjMTDyNjrvhdZtWtMW4oqBRtdU8rKYJ7GwpIijNBF73hQWOwK5eyvcVY5y2jQyjzNWfgsRlAXibcx0CvtUYH7zFeZliyc9/ZVz9ZfhOBoDnW9DPZoUAmNFPa+uAMR/r0zRd7Omlh/TI8+DrH7s="
+          secure: "rhf7GJUclVlQm96S8LXNB9hZSOhrVe/6XjGLAGiHEAHEOsoesGiNYuM+WkAFrD1IzQtzkwUHhWEN5H6Aux9XDk75uUTQP1crOdHNez7CrbFmwc9z8bjGYwMhGaus2MCqBELsrwAXVgRg9W/CmLmyACL9S7le/Wz32KMCYt0RO7pBvwmCNsUwEfBL+gu9GzXGjITTdbOGm5IWSQbhaxZ18WWbzUZvNrfY3bEUmqOQYwwiwGZIXMi+H6fVd5Mhrg1yDDAoHbJ7VVS3fJSA1/2OmAqXveSP+dEhI8zBajmVC7X2Fb33MnwcG/m49kAbte9om03OA+/jsJOEWXqhGgX35FjuFxi7uZMexmGw6dtHSRBmM0Gpomq6CGCrz/Wx2ohfWkr5F2uQGiR1maD51o1QpHYypXlF4fnUvdrR0gWcKjOqVbZGlukFZmthZ3ocebLQZ6xeuCPuiKGiBbpExF/xVzZV/uyoBWqaW5WePbGlSqALcF66CmW0FqE0B+I/CdXO8k4LvLbKBA1hYtAbFC1xQvEfbMKbeRtmqrHyWePfAy/nU+aCwCHfY0uKZGv8WwBrZN6Pxq/K1/OfdCfpe3ewSuVewSvGsW0uByDw1O5mSaIG7Neb85Ym9tq9d0d0EeYXqlDHJ2LPt9aRWXejOTSdegGpaeLuDisNWPDtAXUbdt0="
     - stage: Debian packaging - Python 2
       python: 2.7
       if: (tag IS blank)
